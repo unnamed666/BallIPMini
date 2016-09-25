@@ -66,13 +66,34 @@ int main(void)
     TRIS_CWCCW1=TRIS_OUT; TRIS_CWCCW2=TRIS_OUT; TRIS_CWCCW3=TRIS_OUT;
     LAT_CWCCW1=0; LAT_CWCCW2=0; LAT_CWCCW3=0;
     
+    //initial motor speed
     BRC_SetMotorSpeed(0,0);
     BRC_SetMotorSpeed(1,0);
     BRC_SetMotorSpeed(2,0);
-    
+    // some led swtich board ?
     BRC_InitializeLEDSwitchBoard();
-    
+    //init mpu
     InitializeMPU6050();
+    //calibrate mpu offset - read func returns struct like below
+	/*
+	// FIFO reading buffer
+	int FIFObuff[FIFObuffN];
+	int FIFOc;
+	// number of state variables
+	int FIFOdataN;  
+	// Raw data
+	int GX,GY,GZ,AX,AY,AZ,TMP;
+	// Process data
+	long GyroAngleX,GyroAngleY;
+	long GyroAVX,GyroAVY;
+	long AccAngleX,AccAngleY;
+	long CGAngleX,CGAngleY;
+	long CGFltX,CGFltY;
+
+	// zero offset
+	int zofc;    // count timer
+	long zof[10]; // offset
+	*/
     ReadMPU6050(1);
     
 #define Count RegFileL[0]
