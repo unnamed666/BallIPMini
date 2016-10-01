@@ -174,51 +174,14 @@ int main(void)
 
         // lean angle sensing
         // if zero detect commanded
-        if((((padState.button&0x300)==0x300)||(BRC_SWState()))&&(!IsIMUZeroDetect()))
+        if((BRC_SWState()))&&(!IsIMUZeroDetect())
         {
             ReadMPU6050(1);  // zero detect mode
             SVX.theta_0=SVY.theta_0=0;
-        }
-        else
+        }else{
             ReadMPU6050(0);  // normal IMU function
-        if(IsIMUZeroDetect())
-            BRC_LEDGreen(1);
-        else
-            BRC_LEDGreen(0);
+	}
 
-        unsigned long lastcc=ControlCount;
-        if(((padState.button&0x1)==0x1)&&(!IsIMUZeroDetect()))
-        {
-            if(ControlCount<1000)
-               ControlCount=1000;
-        }
-        if((((padState.button&0x5)==0x5)||(BRC_LEDSwitchBoard_GetPush()))&&(!IsIMUZeroDetect()))
-        {
-            ControlCount=10000000l;
-        }
-        if((padState.button&0xa)==0xa)
-        {
-            ControlCount=0;
-        }
-        
-        if((lastcc==0)&&(ControlCount>0))
-        {  // Control started now
-            LAT_ENABLE12=1;
-            SVX.theta_ref=0;  SVX.pos_ref_0=SVX.pos_ref=SVX.pos;
-            SVY.theta_ref=0;  SVY.pos_ref_0=SVY.pos_ref=SVY.pos;
-            SVX.vel=0;
-            SVY.vel=0;
-            SVX.thetav_ref=0; SVX.vel_ref=0;
-            SVY.thetav_ref=0; SVY.vel_ref=0;
-            BRC_LEDRed(1);
-        }
-        if(ControlCount>0) ControlCount--;
-        if((lastcc>0)&&(ControlCount==0))
-        {  // Control stopped now
-            LAT_ENABLE12=0;
-            BRC_LEDRed(0);
-        }
-        
         SVX.theta = imu.CGAngleY - SVX.theta_0;  // lean to x axis dir
         SVX.thetav= imu.GyroAVY;                 // angular vel of above 
         SVY.theta =-imu.CGAngleX - SVY.theta_0;  // lean to y axis dir
@@ -269,32 +232,8 @@ int main(void)
         BRC_LEDSwitchBoard_CycleTask();
 
 
-        // USB_JOYPAD ; do not change or use carefully
-        // request the JoyPad current stick/button state
-        // results will be stored into padState (global) structure
-        // in subsequent tasks in USB handlers
-        if((Count&0xf)==0)
-            APP_HostHIDInputRequest();
-        // /USB_JOYPAD
-
         
-        //BRC_LEDRed((count&1)?1:0);
-#if 1
-        //BRC_LEDSwitchBoard_SetLEDRaw(0x55aa55aal);
-        //BRC_LEDSwitchBoard_SetHex(0x0123);
-        //BRC_LEDSwitchBoard_SetHex(BRC_LEDSwitchBoard_GetSwitch());
-        //BRC_LEDSwitchBoard_SetHex(Count);
-        //BRC_LEDSwitchBoard_SetHex((int)(imu.CGAngleX>>8)+0x8000);
-        //BRC_LEDSwitchBoard_SetHex(padState.axis[0]);
-        //BRC_LEDRed(BRC_SWState());
-        BRC_LEDRed(BRC_LEDSwitchBoard_GetPush());
-        //BRC_LEDSwitchBoard_SetLEDRaw(RegFileL[4]);
-        //BRC_LEDSwitchBoard_SetLED(RegFileL[4]);
-        BRC_LEDSwitchBoard_SetLEDBits(0,IsIMUZeroDetect());
-        BRC_LEDSwitchBoard_SetLEDBits(1,(ControlCount>0)?1:0);
-//        BRC_LEDSwitchBoard_SetHex((int)(imu.CGAngleX>>8));
-//      BRC_LEDSwitchBoard_SetSIntZS((int)(imu.CGAngleX>>8),3);
-#define IntAngleToDeg(a)      ((((a)>>12)*358)>>9)
+/*#define IntAngleToDeg(a)      ((((a)>>12)*358)>>9)
 #define IntAngleVelToDegps(a) ((((a)>>10)*625)>>6)
 #define IntPosToMm(a)         ((((a)>>5)*267)>>8)
 #define IntVelToMmps(a)       (((a)*209)>>11)
@@ -315,20 +254,12 @@ int main(void)
             case 12: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleVelToDegps(imu.GyroAVX),2);  BRC_LEDSwitchBoard_SetDP(1); break;
             case 13: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleVelToDegps(imu.GyroAVY),2);  BRC_LEDSwitchBoard_SetDP(1); break;
         }
-#endif
-        for(i=0;i<2;i++)
-        {
-            switch(SV[i].cm)
-            {
-                case SVCM_Position: BRC_LEDSwitchBoard_SetLEDBits(2+i,0); break;
-                case SVCM_Velocity: BRC_LEDSwitchBoard_SetLEDBits(2+i,1); break;
-                case SVCM_Lean: BRC_LEDSwitchBoard_SetLEDBits(2+i,(Count&0x10)?1:0); break;
-            }
-        }
+#endif*/
+       
         
       
         
-        if(padState.updated)
+        /*if(padState.updated)
         {
             int ps[3];
             int sh=2;
@@ -385,35 +316,8 @@ int main(void)
 
             }
             
-        }
-// servo
-#if 0
-        if((Count&0xf)==0)
-        {
-            if((Count&0xff)==0)
-                   SLReply16(63,3,SerialGetRxCount());
-            unsigned char rb[4];
-            int id,addr,r,led=0;
-            for(i=0;i<2;i++)
-            {
-                r=FSDecodeResponse(&id,&addr,4,rb);
-                if(r<0)
-                    BRC_LEDSwitchBoard_SetHex(0xee00+(-r));
-                else
-                {
-                    unsigned int v=(((unsigned int)(rb[1]))<<8)|rb[0];
-                    if(id==1) led=(led&~0x00ff)|(v>>1);
-                    if(id==2) led=(led&~0xff00)|(v>>1<<8);
-                    BRC_LEDSwitchBoard_SetHex(led);
-                }
-            }
+        }*/
 
-            FSClearResponse();
-            FSSendMemoryRequest(1,48,2);
-            FSSendMemoryRequest(2,48,2);
-        }
-        FSCheckTimeout();
-#endif
         if((Count&0x1f)==0)
         {
             SLReply16(63,8,(int)(imu.CGAngleX>>8));
