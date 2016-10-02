@@ -157,30 +157,7 @@ int main(void)
     
     while(1)
     {
-        RegFileL[2]=nextclock-BRC_SysClock;
-        while(nextclock>BRC_SysClock)
-        {
-            // USB_JOYPAD ; do not change or use carefully
-            // These three functions are required for state machine tasks
-            // of USB handlers; execute while main tasks are idel
-            USBHostTasks();
-            USBHostHIDTasks();
-            APP_HostHIDJoyPadTasks();       
-            // /USB_JOYPAD
-        }
-        Count++; nextclock+=clockstep;
-
-        // main control
-
-        // lean angle sensing
-        // if zero detect commanded
-        if((BRC_SWState()))&&(!IsIMUZeroDetect())
-        {
-            ReadMPU6050(1);  // zero detect mode
-            SVX.theta_0=SVY.theta_0=0;
-        }else{
-            ReadMPU6050(0);  // normal IMU function
-	}
+        ReadMPU6050(0);
 
         SVX.theta = imu.CGAngleY - SVX.theta_0;  // lean to x axis dir
         SVX.thetav= imu.GyroAVY;                 // angular vel of above 
@@ -225,106 +202,9 @@ int main(void)
             BRC_SetMotorSpeed(0,0);
             BRC_SetMotorSpeed(1,0);
             BRC_SetMotorSpeed(2,0);
-            LAT_ENABLE12=0;
-            BRC_LEDRed(0);
         }
  
-        BRC_LEDSwitchBoard_CycleTask();
-
-
-        
-/*#define IntAngleToDeg(a)      ((((a)>>12)*358)>>9)
-#define IntAngleVelToDegps(a) ((((a)>>10)*625)>>6)
-#define IntPosToMm(a)         ((((a)>>5)*267)>>8)
-#define IntVelToMmps(a)       (((a)*209)>>11)
-        switch((BRC_LEDSwitchBoard_GetSwitch()>>12)&0xf)
-        {
-            case 0: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleToDeg(SVX.theta),3); BRC_LEDSwitchBoard_SetDP(2); break;
-            case 1: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleToDeg(SVY.theta),3); BRC_LEDSwitchBoard_SetDP(2); break;
-            case 2: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleVelToDegps(SVX.thetav),2);  BRC_LEDSwitchBoard_SetDP(1); break;
-            case 3: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleVelToDegps(SVY.thetav),2);  BRC_LEDSwitchBoard_SetDP(1); break;
-            case 4: BRC_LEDSwitchBoard_SetSIntZS((int)IntPosToMm(SVX.pos),2);         BRC_LEDSwitchBoard_SetDP(1); break;
-            case 5: BRC_LEDSwitchBoard_SetSIntZS((int)IntPosToMm(SVY.pos),2);         BRC_LEDSwitchBoard_SetDP(1); break;
-            case 6: BRC_LEDSwitchBoard_SetSIntZS((int)IntVelToMmps(SVX.vel),1);       BRC_LEDSwitchBoard_SetDP(0); break;
-            case 7: BRC_LEDSwitchBoard_SetSIntZS((int)IntVelToMmps(SVY.vel),1);       BRC_LEDSwitchBoard_SetDP(0); break;
-            case 8: BRC_LEDSwitchBoard_SetUInt(Count);              break;
-            case 9: BRC_LEDSwitchBoard_SetSInt(RegFileL[2]&0xffff); break;
-            case 10: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleToDeg(imu.CGAngleX),3); BRC_LEDSwitchBoard_SetDP(2); break;
-            case 11: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleToDeg(imu.CGAngleY),3); BRC_LEDSwitchBoard_SetDP(2); break;
-            case 12: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleVelToDegps(imu.GyroAVX),2);  BRC_LEDSwitchBoard_SetDP(1); break;
-            case 13: BRC_LEDSwitchBoard_SetSIntZS((int)IntAngleVelToDegps(imu.GyroAVY),2);  BRC_LEDSwitchBoard_SetDP(1); break;
-        }
-#endif*/
        
-        
-      
-        
-        /*if(padState.updated)
-        {
-            int ps[3];
-            int sh=2;
-            ps[0]=DeadZone((int)((padState.axis[0])-0x8000)>>1,0x500);
-            ps[1]=DeadZone((int)((padState.axis[1])-0x8000)>>1,0x500);
-            ps[2]=DeadZone((int)((padState.axis[2])-0x8000)>>1,0x500);
-            padState.updated=0;
-            //SLReply16(63,0,padState.axis[0]);
-            //SLReply16(63,1,(int)((((int)(padState.axis[0]))-0x8000))>>5);
-            //SLReply16(63,4,padState.button);
-            if(padState.button&0x0008) sh=0;
-            YawRate=ps[2]>>(3+sh);
-            // controlmode transition
-            for(i=0;i<2;i++)
-            {
-                int ocm=SV[i].cm;
-                SV[i].cm=SVCM_Position;
-                if(padState.button&(0x010<<(i*2))) SV[i].cm=SVCM_Velocity;
-                if(padState.button&(0x020<<(i*2))) SV[i].cm=SVCM_Lean;
-
-                if(SV[i].cm!=ocm)  // mode_changed
-                {
-                    switch(SV[i].cm)
-                    {
-                        case SVCM_Position:
-                            SV[i].gm[0]=1; SV[i].gm[1]=1; SV[i].gm[2]=1; SV[i].gm[3]=1;  // gain activation
-                            SV[i].pos_ref_0=SV[i].pos_ref=SV[i].pos;
-                            SV[i].vel_ref=0;  SV[i].theta_ref=0;
-                            break;
-                        case SVCM_Velocity:
-                           SV[i].gm[0]=1; SV[i].gm[1]=1; SV[i].gm[2]=0; SV[i].gm[3]=1;  // gain activation
-                            SV[i].vel_ref=0;  SV[i].theta_ref=0;
-                            break;
-                        case SVCM_Lean:
-                            SV[i].gm[0]=1; SV[i].gm[1]=1; SV[i].gm[2]=0; SV[i].gm[3]=0;  // gain activation
-                            SV[i].theta_ref=0;
-                            break;
-                    }
-                }
-                
-                switch(SV[i].cm)
-                {
-                    case SVCM_Position:
-                        SV[i].pos_ref=SV[i].pos_ref_0+((long)(ps[i])<<(4-sh));
-                        break;
-                    case SVCM_Velocity:
-                        SV[i].vel_ref=ps[i]>>(sh);
-                        break;
-                    case SVCM_Lean:
-                        SV[i].theta_ref=(long)(ps[i])<<(8-sh);
-                        break;
-                }
-
-
-            }
-            
-        }*/
-
-        if((Count&0x1f)==0)
-        {
-            SLReply16(63,8,(int)(imu.CGAngleX>>8));
-            SLReply16(63,9,(int)(imu.CGAngleY>>8));
-            //SLReply16(63,10,SerialGetTxCount());
-            //SLReply16(63,11,SerialGetRxCount());
-        }
    }
     
 }
